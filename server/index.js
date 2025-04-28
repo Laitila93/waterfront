@@ -10,8 +10,8 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Allow connections from localhost:5173
-app.use(cors({ origin: 'http://localhost:5173' }));
+
+app.use(cors({ origin: 'https://waterfront-frontend.onrender.com' }));
 
 // PostgreSQL connection pool
 const pool = new Pool({
