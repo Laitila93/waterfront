@@ -13,9 +13,6 @@ const server = http.createServer(app);
 // Allow connections from localhost:5173
 app.use(cors({ origin: 'http://localhost:5173' }));
 
-// Read database configuration from a JSON file
-const dbConfig = JSON.parse(fs.readFileSync('./server/dbConfig.json', 'utf-8'));
-
 // PostgreSQL connection pool
 const pool = new Pool({
   host: process.env.DB_HOST,
