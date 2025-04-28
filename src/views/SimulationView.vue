@@ -130,7 +130,7 @@ export default {
         type: flowType,
         amount: value
       };
-      fetch("http://localhost:3000/api/water-flow", {
+      fetch("https://waterfront.onrender.com/api/water-flow", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -141,7 +141,7 @@ export default {
       });
     },
     fetchTotalWaterData() {
-      fetch("http://localhost:3000/api/water-usage", {
+      fetch("https://waterfront.onrender.com/api/water-usage", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
