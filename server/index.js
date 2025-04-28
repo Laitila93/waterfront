@@ -3,39 +3,53 @@ import http from 'http';
 import { Pool } from 'pg';
 import cors from 'cors';
 import fs from 'fs';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Initialize Express app and HTTP server
 const app = express();
 const server = http.createServer(app);
+
 // Allow connections from localhost:5173
 app.use(cors({ origin: 'http://localhost:5173' }));
 
 // Read database configuration from a JSON file
-const dbConfig = JSON.parse(fs.readFileSync('./dbConfig.json', 'utf-8'));
+const dbConfig = JSON.parse(fs.readFileSync('./server/dbConfig.json', 'utf-8'));
 
 // PostgreSQL connection pool
 const pool = new Pool({
-  user: dbConfig.user,
-  host: dbConfig.host,
-  database: dbConfig.database,
-  password: dbConfig.password,
-  port: dbConfig.port
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  port: process.env.DB_PORT
 });
 
 // Middleware to parse JSON
 app.use(express.json());
 
-// Create table if it doesn't exist
+// Explicitly test the DB connection
 (async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS water_usage (
-      id SERIAL PRIMARY KEY,
-      room VARCHAR(10) NOT NULL,
-      type VARCHAR(10) NOT NULL,
-      amount NUMERIC NOT NULL,
-      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  try {
+    const client = await pool.connect();
+    console.log('✅ Connected to PostgreSQL database successfully!');
+    client.release();
+
+    // Create table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS water_usage (
+        id SERIAL PRIMARY KEY,
+        room VARCHAR(10) NOT NULL,
+        type VARCHAR(10) NOT NULL,
+        amount NUMERIC NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Table "water_usage" is ready.');
+  } catch (err) {
+    console.error('❌ Error connecting to the database or creating table:', err);
+    process.exit(1); // Stop the server if the database connection fails
+  }
 })();
 
 // REST API to handle water usage data
@@ -48,14 +62,14 @@ app.post('/api/water-flow', async (req, res) => {
         'INSERT INTO water_usage (room, type, amount) VALUES ($1, $2, $3)',
         [room, type, amount]
       );
-      console.log(`Inserted ${type} water usage in ${room}: ${amount}`);
+      console.log(`✅ Inserted ${type} water usage in ${room}: ${amount}`);
       res.status(201).send('Water usage data inserted successfully');
     } catch (err) {
-      console.error('Error inserting data:', err);
+      console.error('❌ Error inserting data:', err);
       res.status(500).send('Internal Server Error');
     }
   } else {
-    console.error('Invalid data received:', req.body);
+    console.error('❌ Invalid data received:', req.body);
     res.status(400).send('Invalid data');
   }
 });
@@ -70,13 +84,23 @@ app.get('/api/water-usage', async (req, res) => {
     `);
     res.json(result.rows);
   } catch (err) {
-    console.error('Error fetching data:', err);
+    console.error('❌ Error fetching data:', err);
     res.status(500).send('Internal Server Error');
+  }
+});
+
+// (Optional) Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1'); // simple quick query
+    res.send('Database connection is healthy!');
+  } catch (err) {
+    res.status(500).send('Database connection failed');
   }
 });
 
 // Start the server
 const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
